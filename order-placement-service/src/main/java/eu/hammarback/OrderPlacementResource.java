@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static eu.hammarback.OrderPlacementConfiguration.PLACED_ORDERS_TOPIC;
+import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
 import static javax.ws.rs.core.Response.Status.SERVICE_UNAVAILABLE;
@@ -55,7 +56,7 @@ public class OrderPlacementResource {
     asyncResponse.setTimeoutHandler(response -> {
       logger.info("Removing pending order response due to timeout, correlationId: {}", correlationId);
       pendingOrderCreations.remove(correlationId);
-      response.resume(createErrorResponse());
+      response.resume(createErrorResponse(request.orderId));
     });
 
     ProducerRecord<String, String> record = new ProducerRecord<>(PLACED_ORDERS_TOPIC, correlationId, jsonConverter.toJson(request));
@@ -70,8 +71,10 @@ public class OrderPlacementResource {
     });
   }
 
-  private Response createErrorResponse() {
-    return status(SERVICE_UNAVAILABLE).entity(ImmutableMap.of("message", "Operation timed out")).build();
+  private Response createErrorResponse(String orderId) {
+    return status(SERVICE_UNAVAILABLE).entity(ImmutableMap.of(
+        "message", format("Operation timed out while waiting for processing of order with ID [%s]", orderId))
+    ).build();
   }
 
 }
