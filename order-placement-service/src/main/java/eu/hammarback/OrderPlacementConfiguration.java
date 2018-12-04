@@ -1,10 +1,10 @@
 package eu.hammarback;
 
 import io.dropwizard.Configuration;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.apache.kafka.streams.StreamsConfig;
 import org.hibernate.validator.constraints.NotBlank;
 
 import java.util.Properties;
@@ -18,6 +18,17 @@ public class OrderPlacementConfiguration extends Configuration {
   @NotBlank
   public String bootstrapServers;
 
+  public Properties getKafkaStreamsConfig() {
+    Properties streamsConfig = new Properties();
+    streamsConfig.put(StreamsConfig.APPLICATION_ID_CONFIG, "order-placement");
+    streamsConfig.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+    streamsConfig.put(StreamsConfig.CACHE_MAX_BYTES_BUFFERING_CONFIG, 0);
+    streamsConfig.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
+    streamsConfig.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
+    streamsConfig.put(StreamsConfig.RETRIES_CONFIG, String.valueOf(Integer.MAX_VALUE));
+    return streamsConfig;
+  }
+
   public Properties getKafkaProducerConfig() {
     Properties producerConfig = new Properties();
     producerConfig.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
@@ -27,16 +38,6 @@ public class OrderPlacementConfiguration extends Configuration {
     producerConfig.put(ProducerConfig.RETRIES_CONFIG, String.valueOf(Integer.MAX_VALUE));
     producerConfig.put(ProducerConfig.ACKS_CONFIG, "all");
     return producerConfig;
-  }
-
-  public Properties getKafkaConsumerConfig() {
-    Properties consumerConfig = new Properties();
-    consumerConfig.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-    consumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, "order-placement");
-    consumerConfig.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
-    consumerConfig.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-    consumerConfig.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-    return consumerConfig;
   }
 
 }

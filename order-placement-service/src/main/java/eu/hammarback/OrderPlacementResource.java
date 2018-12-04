@@ -1,5 +1,7 @@
 package eu.hammarback;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -35,16 +37,16 @@ public class OrderPlacementResource {
 
   private final Logger logger = LoggerFactory.getLogger(getClass());
   private final Map<String, AsyncResponse> pendingOrderCreations;
-  private final JsonConverter jsonConverter;
+  private final ObjectMapper objectMapper;
   private final Producer<String, String> messageProducer;
 
   public OrderPlacementResource(Producer<String, String> messageProducer,
                                 Map<String, AsyncResponse> pendingOrderCreations,
-                                JsonConverter jsonConverter) {
+                                ObjectMapper objectMapper) {
 
     this.messageProducer = messageProducer;
     this.pendingOrderCreations = pendingOrderCreations;
-    this.jsonConverter = jsonConverter;
+    this.objectMapper = objectMapper;
   }
 
   @POST
@@ -59,7 +61,7 @@ public class OrderPlacementResource {
       response.resume(createErrorResponse(request.orderId));
     });
 
-    ProducerRecord<String, String> record = new ProducerRecord<>(PLACED_ORDERS_TOPIC, correlationId, jsonConverter.toJson(request));
+    ProducerRecord<String, String> record = new ProducerRecord<>(PLACED_ORDERS_TOPIC, correlationId, toJson(request));
     messageProducer.send(record, (metadata, exception) -> {
       if (exception == null) {
         logger.info("Awaiting processing of order with ID [{}], correlationId: {}", request.orderId, correlationId);
@@ -69,6 +71,14 @@ public class OrderPlacementResource {
         asyncResponse.resume(status(INTERNAL_SERVER_ERROR).build());
       }
     });
+  }
+
+  private String toJson(Object object) {
+    try {
+      return objectMapper.writeValueAsString(object);
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private Response createErrorResponse(String orderId) {
